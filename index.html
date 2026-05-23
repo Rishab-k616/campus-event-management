@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gauhati University Event Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <a class="brand" href="#top" aria-label="Gauhati University event portal home">
+        <span class="brand-mark">GU</span>
+        <span>Gauhati University Events</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#events">Events</a>
+        <a href="#tools">Tools</a>
+        <a href="#system-map">System</a>
+        <a href="#process">Process</a>
+        <a href="#register">Register</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <img src="assets/gauhati-university-hero.png" alt="Gauhati University inspired campus event with students, booths, and green surroundings" />
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <p class="eyebrow">Gauhati University event operations</p>
+          <h1>Plan and manage every GU campus event from one portal.</h1>
+          <p class="hero-copy">
+            A dedicated event-management experience for Gauhati University, Guwahati-781014,
+            Assam, helping departments, student bodies, and administrators coordinate approvals,
+            venues, registrations, notices, and live event updates.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#register">Request GU event</a>
+            <a class="button secondary" href="#events">Explore GU events</a>
+          </div>
+          <div class="hero-metrics" aria-label="Platform metrics">
+            <span><strong>A+</strong> NAAC accredited</span>
+            <span><strong>6</strong> faculty groups</span>
+            <span><strong>1</strong> GU event desk</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section event-section" id="events">
+        <div class="section-heading">
+          <p class="eyebrow">Upcoming GU events</p>
+          <h2>Find what is happening across Gauhati University.</h2>
+          <p>Filter by event type and see sample activities for departments, student groups, and university offices.</p>
+        </div>
+        <div class="filter-bar" aria-label="Filter events">
+          <button class="filter active" type="button" data-filter="all">All</button>
+          <button class="filter" type="button" data-filter="academic">Academic</button>
+          <button class="filter" type="button" data-filter="cultural">Cultural</button>
+          <button class="filter" type="button" data-filter="seminar">Seminar</button>
+          <button class="filter" type="button" data-filter="sports">Sports</button>
+        </div>
+        <div class="event-grid">
+          <article class="event-card" data-category="academic">
+            <div class="date"><span>18</span>Jun</div>
+            <div>
+              <p class="tag">Academic</p>
+              <h3>GU Research Poster Colloquium</h3>
+              <p>Phanidhar Datta Seminar Hall &middot; 10:00 AM</p>
+            </div>
+          </article>
+          <article class="event-card" data-category="cultural">
+            <div class="date"><span>22</span>Jun</div>
+            <div>
+              <p class="tag">Cultural</p>
+              <h3>Gulmohur Cultural Evening</h3>
+              <p>Jalukbari campus grounds &middot; 5:30 PM</p>
+            </div>
+          </article>
+          <article class="event-card" data-category="seminar">
+            <div class="date"><span>29</span>Jun</div>
+            <div>
+              <p class="tag">Seminar</p>
+              <h3>NE India Innovation Seminar</h3>
+              <p>Technology faculty block &middot; 9:30 AM</p>
+            </div>
+          </article>
+          <article class="event-card" data-category="sports">
+            <div class="date"><span>04</span>Jul</div>
+            <div>
+              <p class="tag">Sports</p>
+              <h3>GU Inter-Department Sports Meet</h3>
+              <p>University sports complex &middot; 4:00 PM</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section tools-section" id="tools">
+        <div class="section-heading">
+          <p class="eyebrow">GU management suite</p>
+          <h2>Everything Gauhati University organizers need before event day.</h2>
+        </div>
+        <div class="tool-grid">
+          <article class="tool-item">
+            <span class="icon">01</span>
+            <h3>Venue Booking</h3>
+            <p>Check seminar halls, campus grounds, classrooms, equipment, and coordinator assignments.</p>
+          </article>
+          <article class="tool-item">
+            <span class="icon">02</span>
+            <h3>Approval Workflow</h3>
+            <p>Route requests through departments, registrar review, security, finance, and administration.</p>
+          </article>
+          <article class="tool-item">
+            <span class="icon">03</span>
+            <h3>Budget Tracking</h3>
+            <p>Estimate event costs, upload bills, and keep sponsorships visible to GU stakeholders.</p>
+          </article>
+          <article class="tool-item">
+            <span class="icon">04</span>
+            <h3>Attendee Registration</h3>
+            <p>Collect student RSVPs, department affiliation, attendance, feedback, and certificates.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section graph-section" id="system-map">
+        <div class="section-heading">
+          <p class="eyebrow">GU system map</p>
+          <h2>Built around Gauhati University's approval and communication workflow.</h2>
+          <p>
+            The project graph found 212 nodes and 323 relationships. Its strongest hubs map well to a
+            GU event portal: role-based access, event status, registrar approval, notices, notifications,
+            and public discovery.
+          </p>
+        </div>
+        <div class="graph-layout">
+          <div class="graph-panel">
+            <button class="graph-node graph-node-main active" type="button" data-module="events">
+              <span>GU EventStatus</span>
+              <strong>12 links</strong>
+            </button>
+            <button class="graph-node" type="button" data-module="roles">
+              <span>GU UserRole</span>
+              <strong>19 links</strong>
+            </button>
+            <button class="graph-node" type="button" data-module="api">
+              <span>Event API</span>
+              <strong>Create &middot; Live &middot; Public</strong>
+            </button>
+            <button class="graph-node" type="button" data-module="auth">
+              <span>GU Login</span>
+              <strong>Login &middot; Register &middot; Me</strong>
+            </button>
+            <button class="graph-node" type="button" data-module="notifications">
+              <span>Notifications</span>
+              <strong>Unread &middot; Read &middot; All</strong>
+            </button>
+            <button class="graph-node" type="button" data-module="departments">
+              <span>GU Departments</span>
+              <strong>Filters &middot; Lists</strong>
+            </button>
+          </div>
+          <div class="insight-stack">
+            <article class="insight-card insight-detail" id="graph-detail" aria-live="polite">
+              <span>Hub</span>
+              <h3>GU status-driven events</h3>
+              <p>Draft, pending, approved, rejected, live, and completed states keep each GU event traceable.</p>
+            </article>
+            <article class="insight-card">
+              <span>01</span>
+              <h3>Role-aware access</h3>
+              <p>Students discover public GU events, departments create requests, and registrar users approve or reject them.</p>
+            </article>
+            <article class="insight-card">
+              <span>02</span>
+              <h3>Faculty and department filters</h3>
+              <p>Arts, Science, Commerce and Management, Law, Technology, and allied health groups can be organized cleanly.</p>
+            </article>
+            <article class="insight-card">
+              <span>03</span>
+              <h3>Communication layer</h3>
+              <p>Notifications and notices make approvals, updates, unread items, and campus announcements visible to the right users.</p>
+            </article>
+          </div>
+        </div>
+        <div class="graph-stats" aria-label="Graph analysis statistics">
+          <span><strong>212</strong> graph nodes</span>
+          <span><strong>323</strong> workflow edges</span>
+          <span><strong>52</strong> communities</span>
+          <span><strong>72%</strong> extracted links</span>
+        </div>
+      </section>
+
+      <section class="section process-section" id="process">
+        <div class="section-heading compact">
+          <p class="eyebrow">GU process</p>
+          <h2>From department idea to approved campus event.</h2>
+        </div>
+        <div class="timeline">
+          <div>
+            <span>1</span>
+            <h3>Submit proposal</h3>
+            <p>Add GU department, event details, expected audience, venue needs, and budget.</p>
+          </div>
+          <div>
+            <span>2</span>
+            <h3>Get approvals</h3>
+            <p>Track department, registrar, security, and administration review with clear pending actions.</p>
+          </div>
+          <div>
+            <span>3</span>
+            <h3>Promote and register</h3>
+            <p>Publish the GU event page and manage students, faculty, and guests from one dashboard.</p>
+          </div>
+          <div>
+            <span>4</span>
+            <h3>Run and report</h3>
+            <p>Capture attendance, feedback, expenses, and final outcomes for university records.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section register-section" id="register">
+        <div class="register-copy">
+          <p class="eyebrow">Start planning</p>
+          <h2>Create your next Gauhati University event.</h2>
+          <p>
+            Send the core details and the GU events office can begin routing approvals,
+            booking resources, and preparing your registration or notice page.
+          </p>
+        </div>
+        <form class="event-form">
+          <label>
+            Event name
+            <input type="text" name="eventName" placeholder="GU Research Conclave 2026" required />
+          </label>
+          <label>
+            Organizer / department
+            <input type="text" name="organizer" placeholder="Department of Computer Science, GU" required />
+          </label>
+          <label>
+            Event type
+            <select name="type" required>
+              <option value="">Select type</option>
+              <option>Academic</option>
+              <option>Cultural</option>
+              <option>Seminar</option>
+              <option>Sports</option>
+            </select>
+          </label>
+          <label>
+            Expected attendees
+            <input type="number" name="attendees" min="1" placeholder="250" required />
+          </label>
+          <label class="full">
+            Notes
+            <textarea name="notes" rows="4" placeholder="GU venue, department, equipment, guest speaker, or approval needs"></textarea>
+          </label>
+          <button class="button primary full" type="submit">Submit GU event request</button>
+          <p class="form-message" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Gauhati University Event Management &middot; Guwahati-781014, Assam</p>
+      <a href="#top">Back to top</a>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

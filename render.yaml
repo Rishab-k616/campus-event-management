@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: campus-event-backend
+    runtime: python
+    rootDir: campus-event-backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DB_NAME
+        value: event
+      - key: MONGO_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@test.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: REGISTRAR_EMAIL
+        value: registrar@test.com
+      - key: REGISTRAR_PASSWORD
+        sync: false

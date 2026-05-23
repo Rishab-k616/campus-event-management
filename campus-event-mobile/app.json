@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Campus Event Manager",
+    "slug": "campus-event-manager",
+    "version": "1.0.0",
+    "scheme": "campusevents",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.campusevents.manager"
+    },
+    "android": {
+      "package": "com.campusevents.manager",
+      "adaptiveIcon": {
+        "backgroundColor": "#172554"
+      }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}
