@@ -2,6 +2,7 @@ node_modules/
 .expo/
 .venv/
 eas-inspect/
+inspect-*/
 dist/
 .env
 npm-debug.log*
