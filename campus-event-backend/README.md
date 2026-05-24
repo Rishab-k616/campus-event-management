@@ -24,7 +24,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Set `MONGO_URL`, `DB_NAME=EventApp`, and `SECRET_KEY`.
+Set `MONGO_URL`, `DB_NAME=event`, and `SECRET_KEY`.
 
 Run:
 
@@ -36,6 +36,23 @@ Student registration is public. Admin and registrar accounts are created on star
 
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`
 - `REGISTRAR_EMAIL`, `REGISTRAR_PASSWORD`
+
+## Notifications
+
+In-app notifications are always saved in MongoDB. Email notifications are sent
+through Brevo's transactional email API when these environment variables are set:
+
+```bash
+EMAIL_ENABLED=true
+BREVO_API_KEY=your-brevo-api-key
+EMAIL_FROM_EMAIL=verified-sender@example.com
+EMAIL_FROM_NAME=Gauhati University Event Manager
+EMAIL_NOTIFY_STUDENTS_ON_APPROVAL=true
+EMAIL_MAX_RECIPIENTS_PER_EVENT=250
+```
+
+If email is not configured or an email send fails, the in-app notification still
+works.
 
 ## Render
 

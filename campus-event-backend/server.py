@@ -1,4 +1,9 @@
 import os
+import asyncio
+import html
+import json
+import urllib.error
+import urllib.request
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -23,6 +28,12 @@ DB_NAME = os.getenv("DB_NAME", "EventApp")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+EMAIL_FROM_EMAIL = os.getenv("EMAIL_FROM_EMAIL")
+EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "Gauhati University Event Manager")
+EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "true").lower() == "true"
+EMAIL_NOTIFY_STUDENTS_ON_APPROVAL = os.getenv("EMAIL_NOTIFY_STUDENTS_ON_APPROVAL", "true").lower() == "true"
+EMAIL_MAX_RECIPIENTS_PER_EVENT = int(os.getenv("EMAIL_MAX_RECIPIENTS_PER_EVENT", "250"))
 
 if not MONGO_URL:
     raise RuntimeError("MONGO_URL is required")
@@ -244,7 +255,52 @@ def require_roles(*roles: UserRole) -> Callable[[dict[str, Any]], Awaitable[dict
     return dependency
 
 
-async def create_notification(user_id: ObjectId, message: str, notification_type: str) -> None:
+def email_configured() -> bool:
+    return bool(EMAIL_ENABLED and BREVO_API_KEY and EMAIL_FROM_EMAIL)
+
+
+def plain_text_to_html(text: str) -> str:
+    return f"<p>{html.escape(text).replace(chr(10), '<br />')}</p>"
+
+
+def send_brevo_email_sync(to_email: str, to_name: str, subject: str, body: str) -> None:
+    if not email_configured():
+        return
+
+    payload = {
+        "sender": {"name": EMAIL_FROM_NAME, "email": EMAIL_FROM_EMAIL},
+        "to": [{"email": to_email, "name": to_name}],
+        "subject": subject,
+        "htmlContent": plain_text_to_html(body),
+    }
+    request = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "accept": "application/json",
+            "api-key": BREVO_API_KEY,
+            "content-type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response.read()
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+        print(f"Email notification failed for {to_email}: {exc}")
+
+
+async def send_email_notification(user: dict[str, Any], subject: str, body: str) -> None:
+    await asyncio.to_thread(send_brevo_email_sync, user["email"], user["name"], subject, body)
+
+
+async def create_notification(
+    user_id: ObjectId,
+    message: str,
+    notification_type: str,
+    email_subject: Optional[str] = None,
+    email_body: Optional[str] = None,
+) -> None:
     await db.notifications.insert_one(
         {
             "user_id": user_id,
@@ -254,6 +310,29 @@ async def create_notification(user_id: ObjectId, message: str, notification_type
             "created_at": now_utc(),
         }
     )
+    if email_subject:
+        user = await db.users.find_one({"_id": user_id})
+        if user:
+            await send_email_notification(user, email_subject, email_body or message)
+
+
+async def notify_students_about_approved_event(event: dict[str, Any]) -> None:
+    if not EMAIL_NOTIFY_STUDENTS_ON_APPROVAL:
+        return
+
+    subject = f"New approved event: {event['title']}"
+    body = (
+        f"A new Gauhati University event has been approved.\n\n"
+        f"Event: {event['title']}\n"
+        f"Department: {event['department']}\n"
+        f"Venue: {event['venue']}\n"
+        f"Date: {event['date']}\n\n"
+        f"Open the Campus Event Manager app for full details."
+    )
+    message = f"New approved event: {event['title']} at {event['venue']}"
+    cursor = db.users.find({"role": UserRole.student.value}).limit(max(0, EMAIL_MAX_RECIPIENTS_PER_EVENT))
+    async for student in cursor:
+        await create_notification(student["_id"], message, "event_approved_public", subject, body)
 
 
 async def seed_departments() -> None:
@@ -404,7 +483,21 @@ async def create_event(payload: EventCreate, user: dict[str, Any] = Depends(requ
     event["_id"] = result.inserted_id
     registrars = db.users.find({"role": UserRole.registrar.value})
     async for registrar in registrars:
-        await create_notification(registrar["_id"], f"New event pending approval: {payload.title}", "event_pending")
+        await create_notification(
+            registrar["_id"],
+            f"New event pending approval: {payload.title}",
+            "event_pending",
+            f"Event pending approval: {payload.title}",
+            (
+                f"A new Gauhati University event is waiting for registrar approval.\n\n"
+                f"Event: {payload.title}\n"
+                f"Department: {payload.department}\n"
+                f"Venue: {payload.venue}\n"
+                f"Date: {payload.date}\n"
+                f"Submitted by: {user['name']}\n\n"
+                f"Open the Campus Event Manager app to approve or reject it."
+            ),
+        )
     return serialize_event(event)
 
 
@@ -469,7 +562,21 @@ async def approve_event(event_id: str, user: dict[str, Any] = Depends(require_ro
         {"$set": {"status": EventStatus.approved.value, "rejection_reason": None, "updated_at": now_utc(), "approved_by": user["_id"]}},
         return_document=ReturnDocument.AFTER,
     )
-    await create_notification(event["created_by"], f"Your event was approved: {event['title']}", "event_approved")
+    await create_notification(
+        event["created_by"],
+        f"Your event was approved: {event['title']}",
+        "event_approved",
+        f"Event approved: {event['title']}",
+        (
+            f"Your Gauhati University event has been approved.\n\n"
+            f"Event: {event['title']}\n"
+            f"Department: {event['department']}\n"
+            f"Venue: {event['venue']}\n"
+            f"Date: {event['date']}\n\n"
+            f"It is now visible to students in the Campus Event Manager app."
+        ),
+    )
+    await notify_students_about_approved_event(result)
     return serialize_event(result)
 
 
@@ -487,7 +594,21 @@ async def reject_event(event_id: str, payload: RejectRequest, user: dict[str, An
     message = f"Your event was rejected: {event['title']}"
     if rejection_reason:
         message = f"{message}. Remarks: {rejection_reason}"
-    await create_notification(event["created_by"], message, "event_rejected")
+    await create_notification(
+        event["created_by"],
+        message,
+        "event_rejected",
+        f"Event rejected: {event['title']}",
+        (
+            f"Your Gauhati University event was rejected by the registrar.\n\n"
+            f"Event: {event['title']}\n"
+            f"Department: {event['department']}\n"
+            f"Venue: {event['venue']}\n"
+            f"Date: {event['date']}\n"
+            f"Remarks: {rejection_reason or 'No remarks provided.'}\n\n"
+            f"You can review the rejected event in the Campus Event Manager app."
+        ),
+    )
     return serialize_event(result)
 
 

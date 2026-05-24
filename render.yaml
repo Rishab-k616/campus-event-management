@@ -21,3 +21,15 @@ services:
         value: registrar@test.com
       - key: REGISTRAR_PASSWORD
         sync: false
+      - key: EMAIL_ENABLED
+        value: true
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM_EMAIL
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: Gauhati University Event Manager
+      - key: EMAIL_NOTIFY_STUDENTS_ON_APPROVAL
+        value: true
+      - key: EMAIL_MAX_RECIPIENTS_PER_EVENT
+        value: 250
