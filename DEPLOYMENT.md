@@ -97,8 +97,10 @@ work with:
 
 ```text
 Build Command: pip install -r requirements.txt
-Start Command: cd campus-event-backend && python -m uvicorn server:app --host 0.0.0.0 --port $PORT
+Start Command: python -m uvicorn server:app --host 0.0.0.0 --port $PORT
 ```
+
+The root-level `server.py` forwards Render to `campus-event-backend/server.py`.
 
 ## Email Notifications
 
