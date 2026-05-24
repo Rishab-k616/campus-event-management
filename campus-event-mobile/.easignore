@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+.venv/
+eas-inspect/
+dist/
+.env
+npm-debug.log*
+*.log
