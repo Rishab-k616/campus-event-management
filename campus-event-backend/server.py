@@ -305,9 +305,9 @@ async def send_email_notification(user: dict[str, Any], subject: str, body: str)
         return
     email = user.get("email")
     name = user.get("name", "User")
-    if not email or not isinstance(email, str) or not email.strip():
+    if not email or not isinstance(email, str) or not email.strip() or email.lower().endswith("@test.com"):
         email = "rishabkalita170@gmail.com"
-        name = "GU Admin Fallback"
+        name = f"GU Admin ({user.get('name', 'User')})"
     await asyncio.to_thread(send_brevo_email_sync, email, name, subject, body)
 
 
