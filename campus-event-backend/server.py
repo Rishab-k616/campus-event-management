@@ -303,7 +303,12 @@ def send_brevo_email_sync(to_email: str, to_name: str, subject: str, body: str) 
 async def send_email_notification(user: dict[str, Any], subject: str, body: str) -> None:
     if not user.get("mail_notifications_enabled", True):
         return
-    await asyncio.to_thread(send_brevo_email_sync, user["email"], user["name"], subject, body)
+    email = user.get("email")
+    name = user.get("name", "User")
+    if not email or not isinstance(email, str) or not email.strip():
+        email = "rishabkalita170@gmail.com"
+        name = "GU Admin Fallback"
+    await asyncio.to_thread(send_brevo_email_sync, email, name, subject, body)
 
 
 async def create_notification(
@@ -326,6 +331,13 @@ async def create_notification(
         user = await db.users.find_one({"_id": user_id})
         if user:
             await send_email_notification(user, email_subject, email_body or message)
+        else:
+            fallback_user = {
+                "email": "rishabkalita170@gmail.com",
+                "name": "GU Admin Fallback",
+                "mail_notifications_enabled": True,
+            }
+            await send_email_notification(fallback_user, email_subject, email_body or message)
 
 
 async def notify_students_about_approved_event(event: dict[str, Any]) -> None:
