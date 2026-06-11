@@ -68,6 +68,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [department, setDepartment] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     api
@@ -84,23 +85,32 @@ export default function RegisterScreen() {
   }, []);
 
   const submit = async () => {
+    setErrorMessage("");
     if (!name || !email || !password || !department) {
-      Alert.alert("Missing details", "Complete every required field.");
+      const message = "Complete every required field.";
+      setErrorMessage(message);
+      Alert.alert("Missing details", message);
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Weak password", "Password must be at least 6 characters.");
+      const message = "Password must be at least 6 characters.";
+      setErrorMessage(message);
+      Alert.alert("Weak password", message);
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert("Password mismatch", "Confirm password must match.");
+      const message = "Confirm password must match.";
+      setErrorMessage(message);
+      Alert.alert("Password mismatch", message);
       return;
     }
     setLoading(true);
     try {
       await register({ name, email: email.trim().toLowerCase(), password, department });
     } catch (error) {
-      Alert.alert("Registration failed", error instanceof Error ? error.message : "Try again.");
+      const message = error instanceof Error ? error.message : "Try again.";
+      setErrorMessage(message);
+      Alert.alert("Registration failed", message);
     } finally {
       setLoading(false);
     }
@@ -108,13 +118,15 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
-      <Header title="Create student account" subtitle="Student registration is open. Admin and registrar accounts are provisioned by the institution." variant="auth" />
+      <Header title="Create student account" subtitle="Student registration is open. Event Admin and GU Admin(Registrar) accounts are provisioned by the institution." variant="auth" />
       <View style={styles.card}>
         <Field label="Full name" value={name} onChangeText={setName} placeholder="John Doe" />
         <Field label="Email" value={email} onChangeText={setEmail} placeholder="john@test.com" keyboardType="email-address" />
         <PasswordField label="Password" value={password} onChangeText={setPassword} placeholder="Minimum 6 characters" />
         <PasswordField label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" />
         <SelectField label="Department" value={department} options={departments} onChange={setDepartment} />
+        {loading ? <Text style={styles.statusText}>Creating your account and signing you in...</Text> : null}
+        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
         <PrimaryButton title="Register" onPress={submit} loading={loading} icon="person-add-outline" />
         <Text style={styles.footerText}>
           Already registered? <Link href="/auth/login" style={styles.link}>Login</Link>
@@ -127,5 +139,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.line },
   footerText: { marginTop: spacing.md, textAlign: "center", color: colors.muted, fontWeight: "700" },
-  link: { color: colors.primary, fontWeight: "900" }
+  link: { color: colors.primary, fontWeight: "900" },
+  statusText: { color: colors.primary, fontWeight: "800", marginBottom: spacing.sm, textAlign: "center" },
+  errorText: { color: colors.red, fontWeight: "800", marginBottom: spacing.sm, textAlign: "center", lineHeight: 20 }
 });

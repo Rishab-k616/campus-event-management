@@ -11,6 +11,7 @@ type AuthContextValue = {
   register: (payload: { name: string; email: string; password: string; department: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateMailNotifications: (enabled: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -66,8 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.replace("/auth/login");
   };
 
+  const updateMailNotifications = async (enabled: boolean) => {
+    const updatedUser = await api.updateNotificationPreferences({ mail_notifications_enabled: enabled });
+    setUser(updatedUser);
+  };
+
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout, refreshUser }),
+    () => ({ user, token, loading, login, register, logout, refreshUser, updateMailNotifications }),
     [user, token, loading]
   );
 

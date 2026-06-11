@@ -1,15 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { EventCalendar } from "@/components/EventCalendar";
 import { EventCard, Header, PrimaryButton, Screen, StatCard } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { api, EventItem } from "@/utils/api";
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { palette } = useTheme();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("All");
@@ -21,44 +23,50 @@ export default function HomeScreen() {
 
   React.useEffect(() => {
     load();
+    const interval = setInterval(() => {
+      load();
+    }, 2000);
+    return () => clearInterval(interval);
   }, [load]);
 
   if (user?.role === "admin") {
     const pending = events.filter((event) => event.status === "pending").length;
     const approved = events.filter((event) => event.status === "approved" || event.status === "live").length;
+    const calendarEvents = events.filter((event) => event.status === "approved" || event.status === "live");
     return (
       <Screen>
-        <Header title="Admin dashboard" subtitle="Create, edit, and monitor events submitted by your office." variant="admin" />
+        <Header title="Event Admin dashboard" subtitle="Create, edit, and monitor events submitted by your office." variant="admin" />
         <View style={styles.statsRow}>
-          <StatCard label="My events" value={String(events.length)} icon="albums-outline" />
-          <StatCard label="Pending" value={String(pending)} icon="hourglass-outline" />
-          <StatCard label="Approved" value={String(approved)} icon="checkmark-circle-outline" />
+          <StatCard label="My events" value={String(events.length)} icon="albums-outline" onPress={() => router.push({ pathname: "/admin/my-events", params: { filter: "all" } })} />
+          <StatCard label="Pending" value={String(pending)} icon="hourglass-outline" onPress={() => router.push({ pathname: "/admin/my-events", params: { filter: "pending" } })} />
+          <StatCard label="Approved" value={String(approved)} icon="checkmark-circle-outline" onPress={() => router.push({ pathname: "/admin/my-events", params: { filter: "approved" } })} />
         </View>
-        <View style={styles.quickCard}>
-          <Text style={styles.sectionTitle}>Quick actions</Text>
+        <View style={[styles.quickCard, { backgroundColor: palette.card, borderColor: palette.line }]}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Quick actions</Text>
           <PrimaryButton title="Create event" icon="add-circle-outline" onPress={() => router.push("/admin/create-event")} />
           <PrimaryButton title="My events" tone="muted" icon="list-outline" onPress={() => router.push("/admin/my-events")} />
         </View>
-        <EventCalendar events={events} />
+        <EventCalendar events={calendarEvents} />
         {events.slice(0, 3).map((event) => <EventCard key={event.id} event={event} />)}
       </Screen>
     );
   }
 
   if (user?.role === "registrar") {
+    const calendarEvents = events.filter((event) => event.status === "approved" || event.status === "live");
     return (
       <Screen>
-        <Header title="Registrar dashboard" subtitle="Review event proposals and keep the approval queue moving." variant="registrar" />
+        <Header title="GU Admin(Registrar) dashboard" subtitle="Review event proposals and keep the approval queue moving." variant="registrar" />
         <View style={styles.statsRow}>
-          <StatCard label="Pending queue" value="Review" icon="file-tray-full-outline" />
-          <StatCard label="Approved events" value="Live" icon="shield-checkmark-outline" />
+          <StatCard label="Pending queue" value="Review" icon="file-tray-full-outline" onPress={() => router.push("/registrar/pending-events")} />
+          <StatCard label="Approved events" value="Live" icon="shield-checkmark-outline" onPress={() => router.push("/(tabs)/live")} />
         </View>
-        <View style={styles.quickCard}>
-          <Text style={styles.sectionTitle}>Approval workflow</Text>
+        <View style={[styles.quickCard, { backgroundColor: palette.card, borderColor: palette.line }]}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Approval workflow</Text>
           <PrimaryButton title="Pending events" icon="time-outline" onPress={() => router.push("/registrar/pending-events")} />
           <PrimaryButton title="Approved events" tone="muted" icon="checkmark-done-outline" onPress={() => router.push("/registrar/approved-events")} />
         </View>
-        <EventCalendar events={events} />
+        <EventCalendar events={calendarEvents} />
       </Screen>
     );
   }
@@ -73,18 +81,25 @@ export default function HomeScreen() {
   return (
     <Screen>
       <Header title={`Hi, ${user?.name.split(" ")[0] ?? "Student"}`} subtitle="Explore approved events across your campus." variant="student" />
-      <View style={styles.searchBox}>
+      <View style={[styles.searchBox, { backgroundColor: palette.card, borderColor: palette.line }]}>
         <Ionicons name="search" size={20} color={colors.muted} />
-        <TextInput value={query} onChangeText={setQuery} placeholder="Search events or venues" placeholderTextColor="#94A3B8" style={styles.searchInput} />
+        <TextInput value={query} onChangeText={setQuery} placeholder="Search events or venues" placeholderTextColor="#94A3B8" style={[styles.searchInput, { color: palette.text }]} />
       </View>
-      <View style={styles.chipRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroller} contentContainerStyle={styles.chipRow}>
         {departments.map((item) => (
-          <Pressable key={item} style={[styles.filterChip, department === item && styles.filterChipActive]} onPress={() => setDepartment(item)}>
-            <Text style={[styles.filterText, department === item && styles.filterTextActive]}>{item}</Text>
+          <Pressable 
+            key={item} 
+            style={[
+              styles.filterChip, 
+              { backgroundColor: palette.card, borderColor: palette.line },
+              department === item && styles.filterChipActive
+            ]} 
+            onPress={() => setDepartment(item)}
+          >
+            <Text style={[styles.filterText, { color: palette.text }, department === item && styles.filterTextActive]}>{item}</Text>
           </Pressable>
         ))}
-      </View>
-      <EventCalendar events={filtered} />
+      </ScrollView>
       {filtered.map((event) => <EventCard key={event.id} event={event} />)}
       {!filtered.length ? <Text style={styles.empty}>No approved events match your filters.</Text> : null}
     </Screen>
@@ -97,7 +112,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: "900" },
   searchBox: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.md, minHeight: 52, marginBottom: spacing.md },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+  chipScroller: { marginBottom: spacing.md },
+  chipRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.md },
   filterChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 999, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterText: { color: colors.muted, fontWeight: "800" },

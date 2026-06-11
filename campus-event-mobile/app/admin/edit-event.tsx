@@ -5,6 +5,14 @@ import { Field, Header, PrimaryButton, Screen, SelectField } from "@/components/
 import { colors, radius, spacing } from "@/constants/theme";
 import { api } from "@/utils/api";
 
+function dateInputToApiDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  const parsedDate = new Date(`${value}T12:00:00.000Z`);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
+}
+
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [departments, setDepartments] = useState<string[]>([]);
@@ -36,14 +44,14 @@ export default function EditEventScreen() {
       Alert.alert("Missing details", "Complete every event field.");
       return;
     }
-    const parsedDate = new Date(`${date}T00:00:00`);
-    if (Number.isNaN(parsedDate.getTime())) {
+    const apiDate = dateInputToApiDate(date.trim());
+    if (!apiDate) {
       Alert.alert("Invalid date", "Type the date as YYYY-MM-DD, for example 2026-06-18.");
       return;
     }
     setLoading(true);
     try {
-      await api.updateEvent(id, { title, description, date: parsedDate.toISOString(), venue, department });
+      await api.updateEvent(id, { title, description, date: apiDate, venue, department });
       Alert.alert("Event updated", "Changes have been saved.");
       router.replace("/admin/my-events");
     } catch (error) {

@@ -13,6 +13,10 @@ export default function LiveScreen() {
 
   React.useEffect(() => {
     load();
+    const interval = setInterval(() => {
+      load();
+    }, 2000);
+    return () => clearInterval(interval);
   }, [load]);
 
   return (

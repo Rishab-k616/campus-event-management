@@ -3,8 +3,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
+  type ScrollViewProps,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,11 +18,23 @@ import { colors, gradients, radius, spacing } from "@/constants/theme";
 import { useTheme } from "@/contexts/ThemeContext";
 import { EventItem, NotificationItem } from "@/utils/api";
 
-export function Screen({ children }: { children: React.ReactNode }) {
+function formatEventDate(value: string) {
+  const datePart = value.slice(0, 10);
+  const parsed = new Date(`${datePart}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? datePart : parsed.toDateString();
+}
+
+export function Screen({
+  children,
+  refreshControl
+}: {
+  children: React.ReactNode;
+  refreshControl?: ScrollViewProps["refreshControl"];
+}) {
   const { palette } = useTheme();
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.bg }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
         {children}
       </ScrollView>
     </SafeAreaView>
@@ -30,9 +44,7 @@ export function Screen({ children }: { children: React.ReactNode }) {
 export function SplashScreen() {
   return (
     <LinearGradient colors={gradients.auth} style={styles.splash}>
-      <View style={styles.logo}>
-        <Ionicons name="school" size={46} color={colors.white} />
-      </View>
+      <Image source={require("../assets/gu_logo.png")} resizeMode="contain" style={styles.splashLogo} />
       <Text style={styles.splashTitle}>Campus Events</Text>
       <Text style={styles.splashText}>Preparing your campus dashboard</Text>
       <ActivityIndicator color={colors.white} style={{ marginTop: spacing.lg }} />
@@ -54,9 +66,7 @@ export function Header({
     <LinearGradient colors={gradients[variant]} style={styles.header}>
       <View style={styles.brandRow}>
         <View style={styles.brandLeft}>
-          <View style={styles.headerIcon}>
-            <Ionicons name="school" size={26} color={colors.white} />
-          </View>
+          <Image source={require("../assets/gu_logo.png")} resizeMode="contain" style={styles.headerLogo} />
           <View>
             <Text style={styles.brandText}>Gauhati University</Text>
             <Text style={styles.brandSubtext}>Campus Event Manager</Text>
@@ -183,8 +193,9 @@ export function SelectField({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { palette } = useTheme();
+  const { palette, mode } = useTheme();
   const selectedLabel = value || "Choose department";
+  const isDark = mode === "dark";
 
   return (
     <View style={styles.fieldWrap}>
@@ -205,6 +216,13 @@ export function SelectField({
             <ScrollView style={styles.selectList} showsVerticalScrollIndicator={false}>
               {options.map((option) => {
                 const active = option === value;
+                const optionBg = active
+                  ? (isDark ? "rgba(37, 99, 235, 0.15)" : "#EFF6FF")
+                  : palette.input;
+                const optionBorder = active
+                  ? colors.primary
+                  : palette.line;
+
                 return (
                   <Pressable
                     key={option}
@@ -212,9 +230,12 @@ export function SelectField({
                       onChange(option);
                       setOpen(false);
                     }}
-                    style={[styles.selectOption, { backgroundColor: palette.input, borderColor: palette.line }, active && styles.selectOptionActive]}
+                    style={[
+                      styles.selectOption,
+                      { backgroundColor: optionBg, borderColor: optionBorder }
+                    ]}
                   >
-                    <Text style={[styles.selectOptionText, { color: palette.text }, active && styles.selectOptionTextActive]}>{option}</Text>
+                    <Text style={[styles.selectOptionText, { color: active ? colors.primary : palette.text }]}>{option}</Text>
                     {active ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
                   </Pressable>
                 );
@@ -227,14 +248,26 @@ export function SelectField({
   );
 }
 
-export function StatCard({ label, value, icon }: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap }) {
+export function StatCard({
+  label,
+  value,
+  icon,
+  onPress
+}: {
+  label: string;
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress?: () => void;
+}) {
   const { palette } = useTheme();
+  const Container = onPress ? Pressable : View;
   return (
-    <View style={[styles.statCard, { backgroundColor: palette.card, borderColor: palette.line }]}>
+    <Container style={[styles.statCard, { backgroundColor: palette.card, borderColor: palette.line }]} onPress={onPress}>
       <Ionicons name={icon} size={24} color={colors.primary} />
       <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: palette.muted }]}>{label}</Text>
-    </View>
+      {onPress ? <Ionicons name="chevron-forward" size={16} color={palette.muted} style={styles.statChevron} /> : null}
+    </Container>
   );
 }
 
@@ -265,7 +298,7 @@ export function EventCard({
         <Text style={[styles.eventDescription, { color: palette.muted }]}>{event.description}</Text>
         <View style={styles.metaRow}>
           <Ionicons name="calendar-outline" size={16} color={colors.muted} />
-          <Text style={[styles.meta, { color: palette.muted }]}>{new Date(event.date).toDateString()}</Text>
+          <Text style={[styles.meta, { color: palette.muted }]}>{formatEventDate(event.date)}</Text>
         </View>
         <View style={styles.metaRow}>
           <Ionicons name="location-outline" size={16} color={colors.muted} />
@@ -287,6 +320,27 @@ export function EventCard({
   );
 }
 
+function getNotificationConfig(type: string) {
+  switch (type) {
+    case "welcome":
+      return { icon: "sparkles" as const, color: "#D97706", bg: "#FEF3C7" }; // Amber
+    case "event_pending":
+      return { icon: "time-outline" as const, color: "#EA580C", bg: "#FFEDD5" }; // Orange
+    case "event_resubmitted":
+      return { icon: "refresh-circle-outline" as const, color: "#4F46E5", bg: "#EEF2FF" }; // Indigo
+    case "event_approved":
+    case "event_approved_public":
+      return { icon: "checkmark-circle-outline" as const, color: "#16A34A", bg: "#DCFCE7" }; // Green
+    case "event_rejected":
+      return { icon: "close-circle-outline" as const, color: "#DC2626", bg: "#FEE2E2" }; // Red
+    case "approved_event_deleted":
+    case "approved_event_deleted_public":
+      return { icon: "trash-outline" as const, color: "#E11D48", bg: "#FFE4E6" }; // Rose
+    default:
+      return { icon: "notifications-outline" as const, color: "#2563EB", bg: "#DBEAFE" }; // Blue
+  }
+}
+
 export function NotificationCard({
   item,
   onRead
@@ -294,15 +348,52 @@ export function NotificationCard({
   item: NotificationItem;
   onRead: () => void;
 }) {
-  const { palette } = useTheme();
+  const { palette, mode } = useTheme();
+  const config = getNotificationConfig(item.type);
+  const isDark = mode === "dark";
+  const unreadBg = isDark ? "rgba(37, 99, 235, 0.15)" : "#EFF6FF";
+  const unreadBorder = isDark ? "rgba(37, 99, 235, 0.3)" : "#BFDBFE";
+
   return (
-    <Pressable style={[styles.notification, { backgroundColor: palette.card, borderColor: palette.line }, !item.is_read && styles.notificationUnread]} onPress={onRead}>
-      <View style={styles.notificationIcon}>
-        <Ionicons name={item.is_read ? "mail-open-outline" : "mail-unread"} size={22} color={colors.primary} />
+    <Pressable 
+      style={[
+        styles.notification, 
+        { backgroundColor: palette.card, borderColor: palette.line }, 
+        !item.is_read && { backgroundColor: unreadBg, borderColor: unreadBorder }
+      ]} 
+      onPress={onRead}
+    >
+      <View 
+        style={[
+          styles.notificationIcon, 
+          { 
+            backgroundColor: item.is_read 
+              ? (isDark ? "#334155" : "#F1F5F9") 
+              : config.bg 
+          }
+        ]}
+      >
+        <Ionicons 
+          name={config.icon} 
+          size={22} 
+          color={item.is_read ? (isDark ? "#94A3B8" : "#64748B") : config.color} 
+        />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.notificationMessage, { color: palette.text }]}>{item.message}</Text>
-        <Text style={[styles.meta, { color: palette.muted }]}>{new Date(item.created_at).toLocaleString()}</Text>
+        <Text 
+          style={[
+            styles.notificationMessage, 
+            { 
+              color: item.is_read ? palette.muted : palette.text,
+              fontWeight: item.is_read ? "500" : "800" 
+            }
+          ]}
+        >
+          {item.message}
+        </Text>
+        <Text style={[styles.meta, { color: palette.muted }]}>
+          {new Date(item.created_at).toLocaleString()}
+        </Text>
       </View>
     </Pressable>
   );
@@ -358,29 +449,29 @@ const styles = StyleSheet.create({
   },
   splashTitle: { marginTop: spacing.lg, color: colors.white, fontSize: 31, fontWeight: "900" },
   splashText: { marginTop: spacing.sm, color: "#DBEAFE", fontSize: 15 },
-  header: { borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.lg, minHeight: 156 },
-  brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, marginBottom: spacing.lg },
+  header: { borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md, minHeight: 116 },
+  brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, marginBottom: spacing.sm },
   brandLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 },
   headerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.18)",
   },
-  brandText: { color: colors.white, fontSize: 16, fontWeight: "900" },
-  brandSubtext: { color: "#DBEAFE", fontSize: 12, fontWeight: "800", marginTop: 2 },
+  brandText: { color: colors.white, fontSize: 14, fontWeight: "900" },
+  brandSubtext: { color: "#DBEAFE", fontSize: 11, fontWeight: "800", marginTop: 2 },
   themeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.18)"
   },
-  headerTitle: { color: colors.white, fontSize: 28, fontWeight: "900", letterSpacing: 0 },
-  headerSubtitle: { color: "#E0F2FE", fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
+  headerTitle: { color: colors.white, fontSize: 23, fontWeight: "900", letterSpacing: 0 },
+  headerSubtitle: { color: "#E0F2FE", fontSize: 13, lineHeight: 19, marginTop: 4 },
   button: {
     minHeight: 52,
     borderRadius: radius.md,
@@ -490,6 +581,7 @@ const styles = StyleSheet.create({
   },
   statValue: { marginTop: spacing.sm, color: colors.text, fontSize: 24, fontWeight: "900" },
   statLabel: { marginTop: 2, color: colors.muted, fontSize: 13, fontWeight: "700" },
+  statChevron: { position: "absolute", right: spacing.sm, top: spacing.sm },
   eventCard: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
@@ -548,5 +640,16 @@ const styles = StyleSheet.create({
   notificationMessage: { color: colors.text, fontWeight: "800", lineHeight: 21 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.42)", justifyContent: "center", padding: spacing.md },
   modalCard: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.lg },
-  modalTitle: { color: colors.text, fontSize: 22, fontWeight: "900", marginBottom: spacing.md }
+  modalTitle: { color: colors.text, fontSize: 22, fontWeight: "900", marginBottom: spacing.md },
+  splashLogo: {
+    width: 100,
+    height: 100,
+    resizeMode: "contain",
+    marginBottom: spacing.lg
+  },
+  headerLogo: {
+    width: 44,
+    height: 44,
+    resizeMode: "contain"
+  }
 });

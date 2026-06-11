@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing } from "@/constants/theme";
 import { useTheme } from "@/contexts/ThemeContext";
 import { EventItem } from "@/utils/api";
@@ -9,7 +9,10 @@ import { EventCard, PrimaryButton } from "@/components/ui";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function dateKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function eventDateKey(event: EventItem) {
@@ -61,16 +64,16 @@ export function EventCalendar({ events }: { events: EventItem[] }) {
           <Text style={[styles.title, { color: palette.text }]}>Event calendar</Text>
           <Text style={[styles.subtitle, { color: palette.muted }]}>Red circles show days with scheduled events.</Text>
         </View>
-        <View style={styles.nav}>
-          <Pressable style={styles.navButton} onPress={() => moveMonth(-1)}>
-            <Ionicons name="chevron-back" size={20} color={palette.text} />
-          </Pressable>
-          <Pressable style={styles.navButton} onPress={() => moveMonth(1)}>
-            <Ionicons name="chevron-forward" size={20} color={palette.text} />
-          </Pressable>
-        </View>
       </View>
-      <Text style={styles.month}>{monthLabel(cursor)}</Text>
+      <View style={styles.monthRow}>
+        <Pressable style={[styles.navButton, { backgroundColor: palette.input }]} onPress={() => moveMonth(-1)}>
+          <Ionicons name="chevron-back" size={20} color={palette.text} />
+        </Pressable>
+        <Text style={styles.month}>{monthLabel(cursor)}</Text>
+        <Pressable style={[styles.navButton, { backgroundColor: palette.input }]} onPress={() => moveMonth(1)}>
+          <Ionicons name="chevron-forward" size={20} color={palette.text} />
+        </Pressable>
+      </View>
       <View style={styles.weekRow}>
         {WEEKDAYS.map((day) => (
           <Text key={day} style={[styles.weekday, { color: palette.muted }]}>{day}</Text>
@@ -106,7 +109,7 @@ export function EventCalendar({ events }: { events: EventItem[] }) {
         <View style={styles.hoverCard}>
           <Text style={styles.hoverTitle}>{hoveredEvents.length} event{hoveredEvents.length === 1 ? "" : "s"} on this date</Text>
           {hoveredEvents.slice(0, 2).map((event) => (
-            <Text key={event.id} style={styles.hoverText}>{event.title} · {event.venue}</Text>
+            <Text key={event.id} style={styles.hoverText}>{event.title} - {event.venue}</Text>
           ))}
         </View>
       ) : null}
@@ -119,7 +122,9 @@ export function EventCalendar({ events }: { events: EventItem[] }) {
                 <Ionicons name="close" size={22} color={palette.text} />
               </Pressable>
             </View>
-            {selectedEvents.map((event) => <EventCard key={event.id} event={event} />)}
+            <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} showsVerticalScrollIndicator>
+              {selectedEvents.map((event) => <EventCard key={event.id} event={event} />)}
+            </ScrollView>
             <PrimaryButton title="Close" tone="muted" onPress={() => setSelectedKey(null)} />
           </View>
         </View>
@@ -133,9 +138,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
   title: { color: colors.text, fontSize: 20, fontWeight: "900" },
   subtitle: { color: colors.muted, fontWeight: "700", marginTop: 4 },
-  nav: { flexDirection: "row", gap: spacing.sm },
   navButton: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
-  month: { color: colors.primary, fontSize: 18, fontWeight: "900", marginTop: spacing.md, marginBottom: spacing.sm },
+  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.sm },
+  month: { flex: 1, color: colors.primary, fontSize: 18, fontWeight: "900", textAlign: "center" },
   weekRow: { flexDirection: "row" },
   weekday: { flex: 1, textAlign: "center", color: colors.muted, fontSize: 12, fontWeight: "900" },
   grid: { flexDirection: "row", flexWrap: "wrap", marginTop: spacing.sm },
@@ -151,5 +156,7 @@ const styles = StyleSheet.create({
   modalCard: { maxHeight: "82%", backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.lg },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
   modalTitle: { color: colors.text, fontSize: 22, fontWeight: "900" },
-  closeButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.bg }
+  closeButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.bg },
+  modalList: { maxHeight: 480, marginBottom: spacing.md },
+  modalListContent: { paddingBottom: spacing.sm }
 });
