@@ -11,7 +11,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from bson import ObjectId
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Body, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -122,6 +122,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     department: str
     role: UserRole
+    mail_notifications_enabled: bool = True
     created_at: datetime
 
 
@@ -143,6 +144,14 @@ class EventUpdate(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class DeleteEventRequest(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    mail_notifications_enabled: bool
 
 
 class EventResponse(BaseModel):
@@ -199,6 +208,7 @@ def serialize_user(doc: dict[str, Any]) -> UserResponse:
         email=doc["email"],
         department=doc["department"],
         role=doc["role"],
+        mail_notifications_enabled=doc.get("mail_notifications_enabled", True),
         created_at=doc["created_at"],
     )
 
@@ -291,6 +301,8 @@ def send_brevo_email_sync(to_email: str, to_name: str, subject: str, body: str) 
 
 
 async def send_email_notification(user: dict[str, Any], subject: str, body: str) -> None:
+    if not user.get("mail_notifications_enabled", True):
+        return
     await asyncio.to_thread(send_brevo_email_sync, user["email"], user["name"], subject, body)
 
 
@@ -398,6 +410,18 @@ async def seed_user(role: UserRole, email_env: str, password_env: str, default_n
     password = os.getenv(password_env, default_password)
     existing = await db.users.find_one({"email": email})
     if existing:
+        update: dict[str, Any] = {
+            "role": role.value,
+            "department": existing.get("department", "Administration"),
+            "mail_notifications_enabled": existing.get("mail_notifications_enabled", True),
+        }
+        if not existing.get("name"):
+            update["name"] = default_name
+        if existing.get("password") or not existing.get("password_hash"):
+            update["password_hash"] = hash_password(password)
+        elif role in [UserRole.admin, UserRole.registrar]:
+            update["password_hash"] = hash_password(password)
+        await db.users.update_one({"_id": existing["_id"]}, {"$set": update, "$unset": {"password": ""}})
         return
     await db.users.insert_one(
         {
@@ -406,6 +430,7 @@ async def seed_user(role: UserRole, email_env: str, password_env: str, default_n
             "password_hash": hash_password(password),
             "department": "Administration",
             "role": role.value,
+            "mail_notifications_enabled": True,
             "created_at": now_utc(),
         }
     )
@@ -417,6 +442,7 @@ async def initialize_database() -> None:
     await db.events.create_index("created_by")
     await db.notifications.create_index("user_id")
     await db.departments.create_index("name", unique=True)
+    await db.users.update_many({"mail_notifications_enabled": {"$exists": False}}, {"$set": {"mail_notifications_enabled": True}})
     await seed_departments()
     await seed_user(UserRole.admin, "ADMIN_EMAIL", "ADMIN_PASSWORD", "Campus Admin", "admin@test.com", "admin123")
     await seed_user(UserRole.registrar, "REGISTRAR_EMAIL", "REGISTRAR_PASSWORD", "Campus Registrar", "registrar@test.com", "registrar123")
@@ -438,10 +464,23 @@ async def register(payload: RegisterRequest) -> UserResponse:
         "password_hash": hash_password(payload.password),
         "department": payload.department,
         "role": UserRole.student.value,
+        "mail_notifications_enabled": True,
         "created_at": now_utc(),
     }
     result = await db.users.insert_one(user)
     user["_id"] = result.inserted_id
+    await create_notification(
+        result.inserted_id,
+        "Welcome to Gauhati University Campus Event Manager. You will receive updates for approved and live campus events here.",
+        "welcome",
+        "Welcome to Gauhati University Campus Event Manager",
+        (
+            f"Hi {payload.name.strip()},\n\n"
+            f"Your Campus Event Manager account has been created successfully.\n\n"
+            f"You can now explore approved events, live events, and campus notifications in the app.\n\n"
+            f"You can turn email notifications on or off anytime from your profile."
+        ),
+    )
     return serialize_user(user)
 
 
@@ -456,6 +495,19 @@ async def login(payload: LoginRequest) -> TokenResponse:
 @app.get("/auth/me", response_model=UserResponse)
 async def get_me(user: dict[str, Any] = Depends(current_user)) -> UserResponse:
     return serialize_user(user)
+
+
+@app.put("/auth/notification-preferences", response_model=UserResponse)
+async def update_notification_preferences(
+    payload: NotificationPreferencesUpdate,
+    user: dict[str, Any] = Depends(current_user),
+) -> UserResponse:
+    result = await db.users.find_one_and_update(
+        {"_id": user["_id"]},
+        {"$set": {"mail_notifications_enabled": payload.mail_notifications_enabled}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return serialize_user(result)
 
 
 @app.get("/events", response_model=list[EventResponse])
@@ -538,17 +590,85 @@ async def update_event(event_id: str, payload: EventUpdate, user: dict[str, Any]
         raise HTTPException(status_code=404, detail="Event not found")
     if event["created_by"] != user["_id"]:
         raise HTTPException(status_code=403, detail="You can update only your own events")
+    if event["status"] in [EventStatus.approved.value, EventStatus.live.value]:
+        raise HTTPException(status_code=400, detail="Approved events cannot be edited. Delete the event with remarks if it must be removed.")
     update = {key: value for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
     update["updated_at"] = now_utc()
+    if event["status"] == EventStatus.rejected.value:
+        update["status"] = EventStatus.pending.value
+        update["rejection_reason"] = None
     result = await db.events.find_one_and_update({"_id": event["_id"]}, {"$set": update}, return_document=ReturnDocument.AFTER)
+    if event["status"] == EventStatus.rejected.value:
+        registrars = db.users.find({"role": UserRole.registrar.value})
+        async for registrar in registrars:
+            await create_notification(
+                registrar["_id"],
+                f"Rejected event resubmitted for approval: {result['title']}",
+                "event_resubmitted",
+                f"Event resubmitted: {result['title']}",
+                (
+                    f"An admin has edited and resubmitted a previously rejected event.\n\n"
+                    f"Event: {result['title']}\n"
+                    f"Department: {result['department']}\n"
+                    f"Venue: {result['venue']}\n"
+                    f"Date: {result['date']}\n"
+                    f"Submitted by: {user['name']}\n\n"
+                    f"Open the Campus Event Manager app to review it again."
+                ),
+            )
     return serialize_event(result)
 
 
 @app.delete("/events/{event_id}")
-async def delete_event(event_id: str, user: dict[str, Any] = Depends(require_roles(UserRole.admin))) -> dict[str, str]:
-    result = await db.events.delete_one({"_id": oid(event_id), "created_by": user["_id"]})
+async def delete_event(
+    event_id: str,
+    payload: Optional[DeleteEventRequest] = Body(default=None),
+    user: dict[str, Any] = Depends(require_roles(UserRole.admin)),
+) -> dict[str, str]:
+    event = await db.events.find_one({"_id": oid(event_id), "created_by": user["_id"]})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found or not owned by you")
+    delete_reason = payload.reason.strip() if payload and payload.reason and payload.reason.strip() else None
+    if event["status"] in [EventStatus.approved.value, EventStatus.live.value] and not delete_reason:
+        raise HTTPException(status_code=400, detail="Remarks are required when deleting an approved event")
+    result = await db.events.delete_one({"_id": event["_id"], "created_by": user["_id"]})
     if not result.deleted_count:
         raise HTTPException(status_code=404, detail="Event not found or not owned by you")
+    if event["status"] in [EventStatus.approved.value, EventStatus.live.value]:
+        message = f"Approved event deleted: {event['title']}. Remarks: {delete_reason}"
+        registrars = db.users.find({"role": UserRole.registrar.value})
+        async for registrar in registrars:
+            await create_notification(
+                registrar["_id"],
+                message,
+                "approved_event_deleted",
+                f"Approved event deleted: {event['title']}",
+                (
+                    f"An approved Gauhati University event was deleted by the admin.\n\n"
+                    f"Event: {event['title']}\n"
+                    f"Department: {event['department']}\n"
+                    f"Venue: {event['venue']}\n"
+                    f"Date: {event['date']}\n"
+                    f"Deleted by: {user['name']}\n"
+                    f"Remarks: {delete_reason}"
+                ),
+            )
+        students = db.users.find({"role": UserRole.student.value}).limit(max(0, EMAIL_MAX_RECIPIENTS_PER_EVENT))
+        async for student in students:
+            await create_notification(
+                student["_id"],
+                message,
+                "approved_event_deleted_public",
+                f"Event removed: {event['title']}",
+                (
+                    f"An approved Gauhati University event has been removed from the calendar.\n\n"
+                    f"Event: {event['title']}\n"
+                    f"Department: {event['department']}\n"
+                    f"Venue: {event['venue']}\n"
+                    f"Date: {event['date']}\n"
+                    f"Remarks: {delete_reason}"
+                ),
+            )
     return {"message": "Event deleted"}
 
 
