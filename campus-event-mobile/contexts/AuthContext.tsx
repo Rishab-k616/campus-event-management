@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api, User } from "@/utils/api";
 import { getAuthToken, removeAuthToken, setAuthToken } from "@/utils/authStorage";
+import { triggerLocalNotification } from "@/utils/notificationService";
 
 type AuthContextValue = {
   user: User | null;
@@ -25,6 +26,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentUser = await api.me();
     setUser(currentUser);
   };
+
+  // Poll for notifications to show native lock screen alerts
+  useEffect(() => {
+    if (!token || !user) return;
+
+    // Track known notification IDs to prevent showing duplicate alerts
+    const seenNotificationIds = new Set<string>();
+    let isFirstLoad = true;
+
+    const poll = async () => {
+      try {
+        const notificationsList = await api.getNotifications();
+        
+        for (const notif of notificationsList) {
+          if (!seenNotificationIds.has(notif.id)) {
+            seenNotificationIds.add(notif.id);
+            
+            // Only trigger notifications for new unread items after initial loading
+            if (!isFirstLoad && !notif.is_read) {
+              // Map notification types to titles
+              let title = "🎉 New Event Created!";
+              if (notif.type === "event_approved" || notif.type === "event_approved_public") {
+                title = "✅ Event Approved!";
+              } else if (notif.type === "event_rejected") {
+                title = "❌ Event Rejected";
+              } else if (notif.type === "event_pending") {
+                title = "⏳ Event Pending Approval";
+              } else if (notif.type === "approved_event_deleted" || notif.type === "approved_event_deleted_public") {
+                title = "🗑️ Event Removed";
+              } else if (notif.type === "welcome") {
+                title = "👋 Welcome to Campus Events";
+              }
+
+              // Trigger the native system notification
+              await triggerLocalNotification(title, notif.message, { notificationId: notif.id });
+            }
+          }
+        }
+
+        if (isFirstLoad) {
+          isFirstLoad = false;
+        }
+      } catch (err) {
+        console.log("Failed to fetch notifications for push service:", err);
+      }
+    };
+
+    // Initial poll
+    poll();
+
+    // Poll every 3 seconds
+    const interval = setInterval(poll, 3000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [token, user]);
 
   useEffect(() => {
     const bootstrap = async () => {
